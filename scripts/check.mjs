@@ -26,6 +26,15 @@ async function main() {
   assert(page.headers.get("content-type")?.includes("text/html"), "editor should be HTML");
   const html = await page.text();
   assert(html.includes("<textarea"), "editor page missing textarea");
+  assert(html.includes('placeholder="Write something..."'), "default placeholder should be English");
+  assert(html.includes('lang="en"'), "default html lang should be en");
+
+  const zhPage = await fetch(BASE + "/" + id, {
+    headers: { "accept-language": "zh-CN,zh;q=0.9,en;q=0.8" },
+  });
+  const zhHtml = await zhPage.text();
+  assert(zhHtml.includes('placeholder="写点什么..."'), "zh Accept-Language should use Chinese placeholder");
+  assert(zhHtml.includes('lang="zh"'), "zh Accept-Language should set html lang=zh");
 
   const rawEmpty = await fetch(BASE + "/" + id + "?raw=1");
   assert(rawEmpty.headers.get("content-type")?.includes("text/plain"), "raw should be text/plain");
