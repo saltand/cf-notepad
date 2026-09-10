@@ -2,11 +2,10 @@ name = "cf-notepad"
 main = "src/index.ts"
 compatibility_date = "2026-09-10"
 
-# Local `wrangler dev` uses a simulated KV namespace (this id is not used on the network).
-# For production, replace `id` with the value from: npx wrangler kv namespace create NOTES
+# Remote KV namespace `cf-notepad-NOTES`. Local `wrangler dev` still uses a simulated store.
 [[kv_namespaces]]
 binding = "NOTES"
-id = "00000000000000000000000000000000"
+id = "b7f3308969c247b1a2dfd60de95f5083"
 
 # Write-only limiter (PUT/POST /:id). Counters are per Cloudflare location.
 # Tune `simple.limit` / `simple.period` here — the Rate Limiting API does not
