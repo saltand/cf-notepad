@@ -65,7 +65,7 @@ function prefersChinese(request: Request): boolean {
 
 function editorPage(id: string, content: string, chinese: boolean): string {
   const lang = chinese ? "zh" : "en";
-  const placeholder = chinese ? "写点什么" : "Write something";
+  const placeholder = chinese ? "写点什么..." : "Write something...";
   return `<!DOCTYPE html>
 <html lang="${lang}">
 <head>
