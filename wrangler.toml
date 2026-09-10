@@ -1,0 +1,13 @@
+name = "cf-notepad"
+main = "src/index.ts"
+compatibility_date = "2026-09-10"
+
+# Local `wrangler dev` uses a simulated KV namespace (this id is not used on the network).
+# For production, replace `id` with the value from: npx wrangler kv namespace create NOTES
+[[kv_namespaces]]
+binding = "NOTES"
+id = "00000000000000000000000000000000"
+
+[vars]
+# 30 days. KV requires expirationTtl >= 60. Renewed on every save.
+NOTE_TTL_SECONDS = "2592000"
