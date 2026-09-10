@@ -76,7 +76,7 @@ function editorPage(id: string, content: string, chinese: boolean): string {
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background:#fff}
   textarea{position:absolute;inset:0.75rem 0.75rem 1.6rem;box-sizing:border-box;border:1px solid #e5e5e5;border-radius:6px;outline:none;resize:none;padding:1.35rem;overflow:auto;font:16px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#111;background:#fff}
-  .help{position:absolute;left:0.75rem;right:0.75rem;bottom:0;height:1.6rem;display:flex;align-items:center;justify-content:flex-end;box-sizing:border-box;padding:0 0.15rem 0.2rem;font:12px/1 system-ui,-apple-system,sans-serif}
+  .help{position:absolute;left:0.75rem;right:0.75rem;bottom:0;height:1.6rem;display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:0 0.15rem 0.2rem;font:12px/1 system-ui,-apple-system,sans-serif}
   .help a{color:#bbb;text-decoration:none}
   .help a:hover{color:#666}
 </style>
