@@ -66,8 +66,8 @@ function editorPage(id: string, content: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(id)}</title>
 <style>
-  html,body{margin:0;height:100%;background:#fff}
-  textarea{position:absolute;inset:0;width:100%;height:100%;box-sizing:border-box;border:1px solid #e5e5e5;outline:none;resize:none;padding:1.35rem;font:16px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#111;background:#fff}
+  html,body{margin:0;height:100%;overflow:hidden;background:#fff}
+  textarea{position:absolute;inset:0.75rem;box-sizing:border-box;border:1px solid #e5e5e5;border-radius:6px;outline:none;resize:none;padding:1.35rem;overflow:auto;font:16px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#111;background:#fff}
 </style>
 </head>
 <body>
