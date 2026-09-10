@@ -64,7 +64,27 @@ async function main() {
   });
   assert(huge.status === 413, `oversized body expected 413, got ${huge.status}`);
 
-  console.log("ok", { autoId: id });
+  const getStillOk = await fetch(BASE + "/" + id + "?raw=1");
+  assert(getStillOk.status === 200, "GET must not be rate-limited");
+
+  let limited = 0;
+  let last429 = null;
+  if (process.env.CHECK_RATE_LIMIT === "1") {
+    for (let i = 0; i < 70; i++) {
+      const r = await fetch(BASE + "/rl-check", { method: "PUT", body: "n" + i });
+      if (r.status === 429) {
+        limited++;
+        last429 = r;
+      } else {
+        assert(r.status === 204, `burst PUT expected 204 or 429, got ${r.status}`);
+      }
+    }
+    assert(limited > 0, "CHECK_RATE_LIMIT=1 expected at least one 429");
+    assert(last429.headers.get("retry-after"), "429 missing Retry-After");
+    assert((await last429.text()).length > 0, "429 should have a plain-text body");
+  }
+
+  console.log("ok", { autoId: id, rateLimit429: limited || "skipped (set CHECK_RATE_LIMIT=1)" });
 }
 
 main().catch((err) => {

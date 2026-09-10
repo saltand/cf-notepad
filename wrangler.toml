@@ -8,6 +8,19 @@ compatibility_date = "2026-09-10"
 binding = "NOTES"
 id = "00000000000000000000000000000000"
 
+# Write-only limiter (PUT/POST /:id). Counters are per Cloudflare location.
+# Tune `simple.limit` / `simple.period` here — the Rate Limiting API does not
+# read these from [vars]. `period` must be 10 or 60.
+# Use a unique namespace_id per account if you do not want to share counters
+# with another Worker that reuses the same integer.
+[[ratelimits]]
+name = "WRITE_LIMIT"
+namespace_id = "1001"
+
+[ratelimits.simple]
+limit = 60
+period = 60
+
 [vars]
 # 30 days. KV requires expirationTtl >= 60. Renewed on every save.
 NOTE_TTL_SECONDS = "2592000"

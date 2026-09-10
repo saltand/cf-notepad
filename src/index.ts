@@ -1,7 +1,10 @@
 export interface Env {
   NOTES: KVNamespace;
+  WRITE_LIMIT: RateLimit;
   NOTE_TTL_SECONDS?: string;
 }
+
+const WRITE_RETRY_AFTER_SECONDS = 60;
 
 /** 23 lowercase letters, excluding l, o, i. */
 const AUTO_ALPHABET = "abcdefghjkmnpqrstuvwxyz";
@@ -96,6 +99,28 @@ function editorPage(id: string, content: string): string {
 </html>`;
 }
 
+function clientIp(request: Request): string {
+  const cf = request.headers.get("cf-connecting-ip")?.trim();
+  if (cf) return cf;
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  if (forwarded) return forwarded;
+  const fromCf = request.cf && typeof request.cf === "object" && "clientIp" in request.cf
+    ? String((request.cf as { clientIp?: unknown }).clientIp ?? "")
+    : "";
+  return fromCf || "local";
+}
+
+function tooManyRequests(): Response {
+  return new Response("Too Many Requests", {
+    status: 429,
+    headers: {
+      "content-type": "text/plain; charset=utf-8",
+      "retry-after": String(WRITE_RETRY_AFTER_SECONDS),
+      "cache-control": "no-store",
+    },
+  });
+}
+
 function parseNoteId(pathname: string): string | null {
   if (pathname.length < 2 || pathname.includes("/", 1)) return null;
   const id = pathname.slice(1);
@@ -152,6 +177,10 @@ export default {
     }
 
     if (method === "PUT" || method === "POST") {
+      const { success } = await env.WRITE_LIMIT.limit({ key: clientIp(request) });
+      if (!success) {
+        return tooManyRequests();
+      }
       const buf = await request.arrayBuffer();
       if (buf.byteLength > MAX_BODY_BYTES) {
         return new Response("Payload Too Large", { status: 413 });

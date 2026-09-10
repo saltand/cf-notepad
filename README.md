@@ -13,13 +13,16 @@ The path **is** the note. Anyone with the URL can read and write. There is no lo
 | `GET /` | `302` to a new random note id |
 | `GET /:id` | Full-page textarea (blank notes are fine) |
 | `GET /:id?raw=1` | `text/plain; charset=utf-8` (empty string if missing) |
-| `PUT` / `POST /:id` | Save raw body, `204` |
+| `PUT` / `POST /:id` | Save raw body, `204` (rate-limited per client IP) |
 | Body larger than ~1 MiB | `413` |
+| Write rate limit exceeded | `429` + `Retry-After` |
 | Id not matching `[a-z0-9_-]{1,64}` | `404` |
 
 Random ids are **exactly 6 lowercase letters** from a 23-letter alphabet that **excludes `l`, `o`, and `i`**. Collisions retry. Custom paths such as `/meeting-notes` are allowed if they match the pattern above.
 
 Each save writes to KV with `expirationTtl` from `NOTE_TTL_SECONDS` (default **2592000** = 30 days). Saving again renews the TTL.
+
+`PUT` and `POST` to `/:id` are rate-limited with a Workers Rate Limiting binding (`WRITE_LIMIT`): **60 writes per 60 seconds per client IP** (from `cf-connecting-ip`, falling back to `x-forwarded-for` / `local` in `wrangler dev`). `GET` (editor and `?raw=1`) and the `/` redirect are not limited. The limit is **not** an env var — change `[[ratelimits]]` / `[ratelimits.simple]` in `wrangler.toml` (`period` must be `10` or `60`). Exceeding it returns `429` with a short plain-text body and `Retry-After: 60`. Counters are per Cloudflare location; `namespace_id` is an account-unique integer string (bindings that share it share counters).
 
 The editor debounce-autosaves on input. There is almost no chrome: white page, one textarea.
 
@@ -73,6 +76,15 @@ Set in `wrangler.toml` under `[vars]`, or override in the Cloudflare dashboard.
 | --- | --- | --- |
 | `NOTE_TTL_SECONDS` | `2592000` | KV expiration TTL in seconds, applied on every write. Must be ≥ 60 (KV minimum). |
 
+Write rate limit (binding, not `[vars]`):
+
+| Wrangler key | Default | Meaning |
+| --- | --- | --- |
+| `[[ratelimits]].name` | `WRITE_LIMIT` | Binding name used in the Worker |
+| `[[ratelimits]].namespace_id` | `"1001"` | Positive integer string, unique in your account unless you want shared counters |
+| `[ratelimits.simple].limit` | `60` | Allowed `limit()` calls per window |
+| `[ratelimits.simple].period` | `60` | Window in seconds (`10` or `60` only) |
+
 ## curl examples
 
 Assume the Worker is at `$HOST` (local: `http://127.0.0.1:8787`).
@@ -96,9 +108,19 @@ curl -s "$HOST/scratch" | head
 
 Expected: `GET /` → `302` and `Location: /` + six letters from `abcdefghjkmnpqrstuvwxyz`. `PUT`/`POST` → `204`. Invalid ids such as `/Nope` or `/a.b` → `404`.
 
+Burst writes (optional; after 60 `PUT`/`POST` from one IP in a minute you should see `429`):
+
+```bash
+for i in $(seq 1 70); do
+  curl -s -o /dev/null -w "%{http_code}\n" -X PUT -d "x$i" "$HOST/rl-test"
+done | sort | uniq -c
+```
+
+`wrangler dev` simulates the binding. Production enforcement is per Cloudflare location, so a single burst from one city is the realistic test.
+
 ## Stack
 
-One TypeScript Worker (`src/index.ts`) serves the HTML/CSS/JS editor and talks to the `NOTES` KV binding. No framework, no build step beyond Wrangler.
+One TypeScript Worker (`src/index.ts`) serves the HTML/CSS/JS editor and talks to the `NOTES` KV binding plus `WRITE_LIMIT`. No framework, no build step beyond Wrangler.
 
 ## Notes
 
