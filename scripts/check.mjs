@@ -1,0 +1,93 @@
+#!/usr/bin/env node
+/**
+ * Smoke checks against a running wrangler dev server.
+ * Usage: BASE=http://127.0.0.1:8787 node scripts/check.mjs
+ */
+const BASE = (process.env.BASE || "http://127.0.0.1:8787").replace(/\/$/, "");
+
+function assert(cond, msg) {
+  if (!cond) throw new Error(msg);
+}
+
+const AUTO_ALPHABET = "abcdefghjkmnpqrstuvwxyz";
+const AUTO_ID = new RegExp(`^[${AUTO_ALPHABET}]{6}$`);
+
+async function main() {
+  const root = await fetch(BASE + "/", { redirect: "manual" });
+  assert(root.status === 302, `GET / expected 302, got ${root.status}`);
+  const loc = root.headers.get("location");
+  assert(loc, "GET / missing Location");
+  const id = new URL(loc, BASE).pathname.slice(1);
+  assert(AUTO_ID.test(id), `auto id "${id}" is not 6 letters from the 23-letter alphabet`);
+  assert(!/[loi]/.test(id), `auto id "${id}" contains excluded letter`);
+
+  const page = await fetch(BASE + "/" + id);
+  assert(page.status === 200, `GET /${id} expected 200`);
+  assert(page.headers.get("content-type")?.includes("text/html"), "editor should be HTML");
+  const html = await page.text();
+  assert(html.includes("<textarea"), "editor page missing textarea");
+
+  const rawEmpty = await fetch(BASE + "/" + id + "?raw=1");
+  assert(rawEmpty.headers.get("content-type")?.includes("text/plain"), "raw should be text/plain");
+  assert((await rawEmpty.text()) === "", "new note should be empty");
+
+  const put = await fetch(BASE + "/" + id, {
+    method: "PUT",
+    body: "hello notepad",
+  });
+  assert(put.status === 204, `PUT expected 204, got ${put.status}`);
+
+  const raw = await fetch(BASE + "/" + id + "?raw=1");
+  assert((await raw.text()) === "hello notepad", "PUT body not stored");
+
+  const post = await fetch(BASE + "/curl-note", {
+    method: "POST",
+    body: "from post",
+  });
+  assert(post.status === 204, `POST expected 204, got ${post.status}`);
+  const posted = await fetch(BASE + "/curl-note?raw=1");
+  assert((await posted.text()) === "from post", "POST body not stored");
+
+  const missingRaw = await fetch(BASE + "/never-written?raw=1");
+  assert(missingRaw.status === 200 && (await missingRaw.text()) === "", "missing raw should be empty 200");
+
+  const bad = await fetch(BASE + "/Has.Dots");
+  assert(bad.status === 404, "invalid id should 404");
+
+  const tooLong = "a".repeat(65);
+  const long = await fetch(BASE + "/" + tooLong);
+  assert(long.status === 404, "id over 64 should 404");
+
+  const huge = await fetch(BASE + "/big", {
+    method: "PUT",
+    body: "x".repeat(1_048_577),
+  });
+  assert(huge.status === 413, `oversized body expected 413, got ${huge.status}`);
+
+  const getStillOk = await fetch(BASE + "/" + id + "?raw=1");
+  assert(getStillOk.status === 200, "GET must not be rate-limited");
+
+  let limited = 0;
+  let last429 = null;
+  if (process.env.CHECK_RATE_LIMIT === "1") {
+    for (let i = 0; i < 70; i++) {
+      const r = await fetch(BASE + "/rl-check", { method: "PUT", body: "n" + i });
+      if (r.status === 429) {
+        limited++;
+        last429 = r;
+      } else {
+        assert(r.status === 204, `burst PUT expected 204 or 429, got ${r.status}`);
+      }
+    }
+    assert(limited > 0, "CHECK_RATE_LIMIT=1 expected at least one 429");
+    assert(last429.headers.get("retry-after"), "429 missing Retry-After");
+    assert((await last429.text()).length > 0, "429 should have a plain-text body");
+  }
+
+  console.log("ok", { autoId: id, rateLimit429: limited || "skipped (set CHECK_RATE_LIMIT=1)" });
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
