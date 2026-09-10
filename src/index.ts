@@ -58,9 +58,16 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function editorPage(id: string, content: string): string {
+function prefersChinese(request: Request): boolean {
+  const accept = request.headers.get("accept-language") ?? "";
+  return accept.toLowerCase().includes("zh");
+}
+
+function editorPage(id: string, content: string, chinese: boolean): string {
+  const lang = chinese ? "zh" : "en";
+  const placeholder = chinese ? "写点什么" : "Write something";
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -71,7 +78,7 @@ function editorPage(id: string, content: string): string {
 </style>
 </head>
 <body>
-<textarea id="n" spellcheck="false" autofocus>${escapeHtml(content)}</textarea>
+<textarea id="n" spellcheck="false" autofocus placeholder="${placeholder}">${escapeHtml(content)}</textarea>
 <script>
 (() => {
   const el = document.getElementById("n");
@@ -169,7 +176,7 @@ export default {
           headers: noStore("text/plain; charset=utf-8"),
         });
       }
-      const html = editorPage(id, text);
+      const html = editorPage(id, text, prefersChinese(request));
       return new Response(method === "HEAD" ? null : html, {
         status: 200,
         headers: noStore("text/html; charset=utf-8"),
