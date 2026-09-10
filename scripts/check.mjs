@@ -26,6 +26,31 @@ async function main() {
   assert(page.headers.get("content-type")?.includes("text/html"), "editor should be HTML");
   const html = await page.text();
   assert(html.includes("<textarea"), "editor page missing textarea");
+  assert(html.includes('href="/help"'), "editor should link to /help");
+  assert(html.includes("How to use"), "en Accept-Language should use English help label");
+
+  const pageZh = await fetch(BASE + "/" + id, { headers: { "accept-language": "zh-CN,zh;q=0.9" } });
+  const htmlZh = await pageZh.text();
+  assert(htmlZh.includes("如何使用"), "zh Accept-Language should use Chinese help label");
+  assert(!htmlZh.includes("How to use"), "zh editor should not show English help label");
+
+  const help = await fetch(BASE + "/help");
+  assert(help.status === 200, `GET /help expected 200, got ${help.status}`);
+  assert(help.headers.get("content-type")?.includes("text/html"), "/help should be HTML");
+  const helpHtml = await help.text();
+  assert(helpHtml.includes("如何使用"), "/help missing Chinese section");
+  assert(helpHtml.includes("How to use"), "/help missing English section");
+  assert(helpHtml.includes("[a-z0-9_-]{1,64}"), "/help missing id pattern");
+  assert(helpHtml.includes("NOTE_TTL_SECONDS"), "/help missing TTL var");
+  assert(helpHtml.includes("?raw=1"), "/help missing raw query");
+  assert(!helpHtml.includes('id="n"'), "/help must not be the editor");
+
+  const helpRaw = await fetch(BASE + "/help?raw=1");
+  assert(helpRaw.status === 200, "GET /help?raw=1 should still be the help page");
+  assert((await helpRaw.text()).includes("<title>How to use"), "/help?raw=1 must not be a note");
+
+  const helpPut = await fetch(BASE + "/help", { method: "PUT", body: "nope" });
+  assert(helpPut.status === 405, `PUT /help expected 405, got ${helpPut.status}`);
   assert(html.includes('placeholder="Write something..."'), "default placeholder should be English");
   assert(html.includes('lang="en"'), "default html lang should be en");
 
