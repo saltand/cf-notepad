@@ -31,7 +31,7 @@ async function main() {
   assert(html.includes('id="s"') && html.includes('class="sync"'), "editor should include sync-status icon");
   assert(html.includes('data-state="synced"'), "sync icon should start synced");
   assert(html.includes('aria-label="Synced"'), "en sync icon aria-label should be Synced");
-  assert(html.includes("setTimeout(save, 800)"), "autosave debounce should remain ~800ms");
+  assert(html.includes("setTimeout(save, 300)"), "autosave debounce should remain ~300ms");
   const inputHandler = html.match(/el\.addEventListener\("input", \(\) => \{[\s\S]*?\}\);/);
   assert(inputHandler, "editor should bind an input autosave handler");
   assert(!inputHandler[0].includes("setState"), "typing/debounce must not change the sync icon");

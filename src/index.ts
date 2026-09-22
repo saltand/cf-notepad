@@ -130,7 +130,7 @@ function editorPage(id: string, content: string, chinese: boolean): string {
   el.addEventListener("input", () => {
     dirty = true;
     clearTimeout(timer);
-    timer = setTimeout(save, 800);
+    timer = setTimeout(save, 300);
   });
 })();
 </script>
@@ -192,7 +192,7 @@ function helpPage(): string {
 <ul>
 <li>打开 <code>/</code> 会新建一条随机笔记并跳转过去。</li>
 <li>自定义路径即笔记 id，须匹配 <code>[a-z0-9_-]{1,64}</code>，例如 <code>/meeting-notes</code>。</li>
-<li>编辑器会在输入后自动保存（约 800ms 防抖）。</li>
+<li>编辑器会在输入后自动保存（约 300ms 防抖）。</li>
 <li><code>GET /:id?raw=1</code> 返回纯文本。</li>
 <li>也可用 curl 写入：<code>PUT</code> 或 <code>POST</code>。</li>
 <li>约 30 天 TTL，每次保存刷新（<code>NOTE_TTL_SECONDS</code>）。</li>
@@ -205,7 +205,7 @@ function helpPage(): string {
 <ul>
 <li>Opening <code>/</code> creates a random new note and redirects to it.</li>
 <li>A custom path is the note id: <code>[a-z0-9_-]{1,64}</code>, e.g. <code>/meeting-notes</code>.</li>
-<li>The editor autosaves as you type (about 800ms debounce).</li>
+<li>The editor autosaves as you type (about 300ms debounce).</li>
 <li><code>GET /:id?raw=1</code> returns plain text.</li>
 <li>Write with curl via <code>PUT</code> or <code>POST</code>.</li>
 <li>~30 day TTL, refreshed on last save (<code>NOTE_TTL_SECONDS</code>).</li>
