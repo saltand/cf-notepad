@@ -63,6 +63,9 @@ function editorPage(id: string, content: string, chinese: boolean): string {
   const lang = chinese ? 'zh' : 'en'
   const placeholder = chinese ? '写点什么...' : 'Write something...'
   const helpLabel = chinese ? '如何使用' : 'How to use'
+  const syncLabels = chinese
+    ? { unsynced: '未同步', syncing: '同步中', synced: '已同步' }
+    : { unsynced: 'Unsynced', syncing: 'Syncing', synced: 'Synced' }
   return `<!DOCTYPE html>
 <html lang="${lang}">
 <head>
@@ -72,34 +75,60 @@ function editorPage(id: string, content: string, chinese: boolean): string {
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background-color:#fff;background-image:linear-gradient(to bottom in oklab,color-mix(in oklab,#bedbff 5%,transparent),color-mix(in oklab,#eff6ff 10%,transparent))}
   .bg{pointer-events:none;position:fixed;inset:0;width:100%;height:100%;fill:#3080ff80;stroke:#3080ff80;opacity:.2;-webkit-mask-image:linear-gradient(to bottom,#ffffffad,transparent);mask-image:linear-gradient(to bottom,#ffffffad,transparent)}
-  textarea{position:absolute;inset:1.6rem 1.6rem 3.2rem;box-sizing:border-box;border:1px solid color-mix(in oklab,#bedbff 80%,transparent);border-radius:2px;outline:none;resize:none;padding:1.35rem;overflow:auto;font:16px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#111;background:#fff}
+  textarea{position:absolute;inset:1.6rem 1.6rem 3.2rem;box-sizing:border-box;border:1px solid color-mix(in oklab,#bedbff 80%,transparent);border-radius:2px;outline:none;resize:none;padding:1.65rem 2rem 1.35rem 1.35rem;overflow:auto;font:16px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#111;background:#fff}
+  .sync{position:absolute;top:calc(1.6rem + .5rem);right:calc(1.6rem + .5rem);width:14px;height:14px;color:#c4c4c4;z-index:1;pointer-events:none}
+  .sync svg{display:block;width:100%;height:100%}
+  .sync .i{display:none}
+  .sync[data-state="unsynced"] .unsynced,.sync[data-state="syncing"] .syncing,.sync[data-state="synced"] .synced{display:block}
+  .sync[data-state="syncing"]{color:#8aa4c8}
+  .sync[data-state="syncing"] svg{animation:spin .8s linear infinite;transform-origin:center}
+  .sync[data-state="synced"]{color:#9aaa9a}
   .help{position:absolute;left:0;right:0;bottom:0;height:3.2rem;display:flex;align-items:center;justify-content:center;box-sizing:border-box;font:12px/1 system-ui,-apple-system,sans-serif}
   .help a{color:#bbb;text-decoration:none}
   .help a:hover{color:#666}
+  @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 <svg class="bg" aria-hidden="true"><defs><pattern id="g" width="6" height="6" patternUnits="userSpaceOnUse" x="-1" y="-1"><path d="M.5 6V.5H6" fill="none"></path></pattern></defs><rect width="100%" height="100%" stroke-width="0" fill="url(#g)"></rect></svg>
+<span id="s" class="sync" data-state="synced" role="status" aria-live="polite" title="${syncLabels.synced}" aria-label="${syncLabels.synced}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle class="i unsynced" cx="8" cy="8" r="5"/><path class="i syncing" d="M13 8a5 5 0 1 1-5-5"/><path class="i synced" stroke-linejoin="round" d="M4 8.5 6.5 11 12 4.5"/></svg></span>
 <textarea id="n" spellcheck="false" autofocus placeholder="${placeholder}">${escapeHtml(content)}</textarea>
 <nav class="help"><a href="/help">${helpLabel}</a></nav>
 <script>
 (() => {
   const el = document.getElementById("n");
-  let timer = 0, inflight = false, queued = false;
+  const icon = document.getElementById("s");
+  const labels = ${JSON.stringify(syncLabels)};
+  let timer = 0, inflight = false, queued = false, dirty = false;
+  const setState = (state) => {
+    icon.dataset.state = state;
+    icon.setAttribute("title", labels[state]);
+    icon.setAttribute("aria-label", labels[state]);
+  };
   const save = () => {
     if (inflight) { queued = true; return; }
     inflight = true;
+    setState("syncing");
+    const sent = el.value;
     fetch(location.pathname, {
       method: "PUT",
-      body: el.value,
+      body: sent,
       headers: { "content-type": "text/plain;charset=utf-8" },
       keepalive: true,
+    }).then((res) => {
+      if (!res.ok) throw new Error("save failed");
+      if (el.value === sent) dirty = false;
+    }).catch(() => {
+      dirty = true;
     }).finally(() => {
       inflight = false;
-      if (queued) { queued = false; save(); }
+      if (queued) { queued = false; save(); return; }
+      setState(dirty ? "unsynced" : "synced");
     });
   };
   el.addEventListener("input", () => {
+    dirty = true;
+    if (!inflight) setState("unsynced");
     clearTimeout(timer);
     timer = setTimeout(save, 800);
   });

@@ -28,11 +28,20 @@ async function main() {
   assert(html.includes("<textarea"), "editor page missing textarea");
   assert(html.includes('href="/help"'), "editor should link to /help");
   assert(html.includes("How to use"), "en Accept-Language should use English help label");
+  assert(html.includes('id="s"') && html.includes('class="sync"'), "editor should include sync-status icon");
+  assert(html.includes('data-state="synced"'), "sync icon should start synced");
+  assert(html.includes('aria-label="Synced"'), "en sync icon aria-label should be Synced");
+  assert(html.includes("setTimeout(save, 800)"), "autosave debounce should remain ~800ms");
+  assert(html.includes("pointer-events:none"), "sync icon must not intercept typing");
+  assert(html.includes("calc(1.6rem + .5rem)"), "sync icon should sit inside the textarea inset");
+  assert(!html.includes("After typing"), "preview-only caption must not ship in the editor");
+  assert(!html.includes("<h1") && !html.includes("caption"), "editor must not add a visible caption/label");
 
   const pageZh = await fetch(BASE + "/" + id, { headers: { "accept-language": "zh-CN,zh;q=0.9" } });
   const htmlZh = await pageZh.text();
   assert(htmlZh.includes("如何使用"), "zh Accept-Language should use Chinese help label");
   assert(!htmlZh.includes("How to use"), "zh editor should not show English help label");
+  assert(htmlZh.includes('aria-label="已同步"'), "zh sync icon aria-label should be 已同步");
 
   const help = await fetch(BASE + "/help");
   assert(help.status === 200, `GET /help expected 200, got ${help.status}`);
