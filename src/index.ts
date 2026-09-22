@@ -118,17 +118,17 @@ function editorPage(id: string, content: string, chinese: boolean): string {
     }).then((res) => {
       if (!res.ok) throw new Error("save failed");
       if (el.value === sent) dirty = false;
+      setState("synced");
     }).catch(() => {
       dirty = true;
+      setState("unsynced");
     }).finally(() => {
       inflight = false;
-      if (queued) { queued = false; save(); return; }
-      setState(dirty ? "unsynced" : "synced");
+      if (queued) { queued = false; save(); }
     });
   };
   el.addEventListener("input", () => {
     dirty = true;
-    if (!inflight) setState("unsynced");
     clearTimeout(timer);
     timer = setTimeout(save, 800);
   });

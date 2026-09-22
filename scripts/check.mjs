@@ -32,8 +32,15 @@ async function main() {
   assert(html.includes('data-state="synced"'), "sync icon should start synced");
   assert(html.includes('aria-label="Synced"'), "en sync icon aria-label should be Synced");
   assert(html.includes("setTimeout(save, 800)"), "autosave debounce should remain ~800ms");
+  const inputHandler = html.match(/el\.addEventListener\("input", \(\) => \{[\s\S]*?\}\);/);
+  assert(inputHandler, "editor should bind an input autosave handler");
+  assert(!inputHandler[0].includes("setState"), "typing/debounce must not change the sync icon");
+  assert(!html.includes('if (!inflight) setState("unsynced")'), "input must not mark unsynced during debounce");
+  assert(html.includes('if (!res.ok) throw new Error("save failed")'), "non-2xx PUT should fail the save");
+  assert(html.includes('setState("unsynced")'), "failed PUT should mark unsynced");
   assert(html.includes("pointer-events:none"), "sync icon must not intercept typing");
   assert(html.includes("calc(1.6rem + .5rem)"), "sync icon should sit inside the textarea inset");
+  await smokeSyncStateMachine(html);
   assert(!html.includes("After typing"), "preview-only caption must not ship in the editor");
   assert(!html.includes("<h1") && !html.includes("caption"), "editor must not add a visible caption/label");
 
@@ -128,6 +135,79 @@ async function main() {
   }
 
   console.log("ok", { autoId: id, rateLimit429: limited || "skipped (set CHECK_RATE_LIMIT=1)" });
+}
+
+function flush() {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
+/** Drive the inlined editor save machine with a mock fetch (no browser). */
+async function smokeSyncStateMachine(html) {
+  const match = html.match(/<script>\s*\(\(\) => \{([\s\S]*?)\}\)\(\);\s*<\/script>/);
+  assert(match, "editor should ship an IIFE autosave script");
+  const listeners = {};
+  const icon = {
+    dataset: { state: "synced" },
+    setAttribute() {},
+  };
+  const el = {
+    value: "draft",
+    addEventListener(type, fn) {
+      listeners[type] = fn;
+    },
+  };
+  const document = {
+    getElementById(id) {
+      return id === "n" ? el : icon;
+    },
+  };
+  const location = { pathname: "/sync-smoke" };
+  const pendingTimers = [];
+  const setTimeoutMock = (fn) => {
+    pendingTimers.push(fn);
+    return pendingTimers.length;
+  };
+  const clearTimeoutMock = () => {
+    pendingTimers.length = 0;
+  };
+  let fetchImpl = async () => ({ ok: true });
+  const fetchMock = (...args) => fetchImpl(...args);
+  const run = new Function("document", "location", "fetch", "setTimeout", "clearTimeout", match[1]);
+  run(document, location, fetchMock, setTimeoutMock, clearTimeoutMock);
+
+  assert(typeof listeners.input === "function", "input listener should be registered");
+  listeners.input();
+  assert(icon.dataset.state === "synced", "keystroke during debounce should stay synced");
+  pendingTimers.pop()();
+  assert(icon.dataset.state === "syncing", "save start should show syncing");
+  await flush();
+  assert(icon.dataset.state === "synced", "successful PUT should show synced");
+
+  fetchImpl = async () => ({ ok: false, status: 413 });
+  el.value = "x".repeat(1_048_577);
+  listeners.input();
+  assert(icon.dataset.state === "synced", "oversized draft should stay synced until PUT fails");
+  pendingTimers.pop()();
+  assert(icon.dataset.state === "syncing", "failed save still starts as syncing");
+  await flush();
+  assert(icon.dataset.state === "unsynced", "413 / non-2xx PUT should show unsynced");
+
+  fetchImpl = async () => {
+    throw new Error("network");
+  };
+  el.value = "retry";
+  listeners.input();
+  assert(icon.dataset.state === "unsynced", "after failure, stay unsynced while debounce waits");
+  pendingTimers.pop()();
+  await flush();
+  assert(icon.dataset.state === "unsynced", "network error should show unsynced");
+
+  fetchImpl = async () => ({ ok: true });
+  el.value = "ok";
+  listeners.input();
+  pendingTimers.pop()();
+  await flush();
+  assert(icon.dataset.state === "synced", "later successful PUT should return to synced");
 }
 
 main().catch((err) => {
