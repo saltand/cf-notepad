@@ -32,6 +32,10 @@ async function main() {
   assert(html.includes('data-state="synced"'), "sync icon should start synced");
   assert(html.includes('aria-label="Synced"'), "en sync icon aria-label should be Synced");
   assert(html.includes("setTimeout(save, 800)"), "autosave debounce should remain ~800ms");
+  assert(html.includes("pointer-events:none"), "sync icon must not intercept typing");
+  assert(html.includes("calc(1.6rem + .5rem)"), "sync icon should sit inside the textarea inset");
+  assert(!html.includes("After typing"), "preview-only caption must not ship in the editor");
+  assert(!html.includes("<h1") && !html.includes("caption"), "editor must not add a visible caption/label");
 
   const pageZh = await fetch(BASE + "/" + id, { headers: { "accept-language": "zh-CN,zh;q=0.9" } });
   const htmlZh = await pageZh.text();

@@ -75,8 +75,8 @@ function editorPage(id: string, content: string, chinese: boolean): string {
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background-color:#fff;background-image:linear-gradient(to bottom in oklab,color-mix(in oklab,#bedbff 5%,transparent),color-mix(in oklab,#eff6ff 10%,transparent))}
   .bg{pointer-events:none;position:fixed;inset:0;width:100%;height:100%;fill:#3080ff80;stroke:#3080ff80;opacity:.2;-webkit-mask-image:linear-gradient(to bottom,#ffffffad,transparent);mask-image:linear-gradient(to bottom,#ffffffad,transparent)}
-  textarea{position:absolute;inset:1.6rem 1.6rem 3.2rem;box-sizing:border-box;border:1px solid color-mix(in oklab,#bedbff 80%,transparent);border-radius:2px;outline:none;resize:none;padding:1.35rem;overflow:auto;font:16px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#111;background:#fff}
-  .sync{position:absolute;top:.42rem;right:.5rem;width:14px;height:14px;color:#c4c4c4;z-index:1}
+  textarea{position:absolute;inset:1.6rem 1.6rem 3.2rem;box-sizing:border-box;border:1px solid color-mix(in oklab,#bedbff 80%,transparent);border-radius:2px;outline:none;resize:none;padding:1.65rem 2rem 1.35rem 1.35rem;overflow:auto;font:16px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#111;background:#fff}
+  .sync{position:absolute;top:calc(1.6rem + .5rem);right:calc(1.6rem + .5rem);width:14px;height:14px;color:#c4c4c4;z-index:1;pointer-events:none}
   .sync svg{display:block;width:100%;height:100%}
   .sync .i{display:none}
   .sync[data-state="unsynced"] .unsynced,.sync[data-state="syncing"] .syncing,.sync[data-state="synced"] .synced{display:block}
